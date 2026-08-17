@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# Runs quick validation (fmt check + cargo check) before every push.
+#
+# Opt in once per clone:
+#   git config core.hooksPath .githooks
+#
+# Bypass for a single push with `git push --no-verify`.
+# ABACUS_HOOK_DRY_RUN=1 prints the commands instead of running them,
+# which is how the test suite exercises this hook.
+set -eu
+
+root=$(git rev-parse --show-toplevel)
+if [ "${ABACUS_HOOK_DRY_RUN:-0}" = "1" ]; then
+    exec "$root/scripts/validate.sh" quick --dry-run
+fi
+exec "$root/scripts/validate.sh" quick

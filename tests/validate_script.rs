@@ -105,6 +105,30 @@ fn a_failing_step_stops_the_run_and_keeps_its_exit_code() {
 }
 
 #[test]
+fn pre_push_hook_runs_quick_validation() {
+    let hook = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".githooks/pre-push");
+    let mode = fs::metadata(&hook).unwrap().permissions().mode();
+    assert_ne!(mode & 0o111, 0, "hook must be executable");
+
+    // The hook honours ABACUS_HOOK_DRY_RUN so it can be exercised without
+    // spawning a nested cargo build.
+    let output = Command::new("sh")
+        .arg(&hook)
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .env("ABACUS_HOOK_DRY_RUN", "1")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("cargo fmt --all -- --check"), "{stdout}");
+    assert!(stdout.contains("cargo check --all-targets"), "{stdout}");
+}
+
+#[test]
 fn unknown_mode_fails_and_prints_the_supported_modes() {
     let output = Command::new("sh")
         .arg(script())
