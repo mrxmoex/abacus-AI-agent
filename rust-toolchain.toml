@@ -1,0 +1,5 @@
+# Rustup users build with current stable, matching the CI check matrix.
+# The 1.88 floor (edition 2024) is declared in Cargo.toml `rust-version`
+# and enforced by the dedicated CI msrv job.
+[toolchain]
+channel = "stable"
