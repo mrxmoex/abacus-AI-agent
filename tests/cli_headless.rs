@@ -75,6 +75,46 @@ fn headless_json_runs_without_prior_setup() {
 }
 
 #[test]
+fn headless_fails_fast_when_nothing_listens_at_the_endpoint() {
+    // Bind then drop, so connections to the port are refused rather than
+    // answered. Before the preflight existed this run spent its time in
+    // silent connect retries and died with a raw transport error.
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    drop(listener);
+
+    let directory = tempdir().unwrap();
+    let started = std::time::Instant::now();
+    let output = Command::new(env!("CARGO_BIN_EXE_abacus"))
+        .current_dir(directory.path())
+        .env("ABACUS_HOME", directory.path().join("home"))
+        .env("ABACUS_NO_ACTIVITY", "1")
+        .args([
+            "--base-url",
+            &format!("http://{address}/v1"),
+            "--model",
+            "test-model",
+            "--protocol",
+            "chat-completions",
+            "--no-session",
+            "--prompt",
+            "say hello",
+        ])
+        .output()
+        .unwrap();
+    let elapsed = started.elapsed();
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("provider unreachable"), "{stderr}");
+    assert!(stderr.contains("abacus doctor"), "{stderr}");
+    assert!(
+        elapsed < std::time::Duration::from_secs(5),
+        "fail-fast took {elapsed:?}"
+    );
+}
+
+#[test]
 fn headless_loop_stops_when_promise_appears() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();

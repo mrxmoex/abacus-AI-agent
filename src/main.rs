@@ -296,13 +296,29 @@ async fn main() -> Result<()> {
 
     // Best-effort: ask the provider for the model's real context window and
     // output cap so compaction thresholds and output limits scale with the
-    // model. Non-fatal — we fall back to the heuristic/default estimates.
+    // model. Usually non-fatal — but a headless run against an address where
+    // nothing listens fails here, immediately and with a pointer to the fix,
+    // instead of grinding through the chat client's connect retries. The TUI
+    // still launches, since an interactive user can fix the endpoint live.
     if config.model_limits.source != model_info::LimitSource::Override
         && let Some(models_url) = config.models_endpoint()
-        && let Some((context, output)) =
-            model_info::detect_limits(&models_url, config.api_key.as_deref(), &config.model).await
     {
-        config.model_limits.apply_detected(context, output);
+        match model_info::detect_limits(&models_url, config.api_key.as_deref(), &config.model).await
+        {
+            model_info::ModelsProbe::Limits(context, output) => {
+                config.model_limits.apply_detected(context, output);
+            }
+            model_info::ModelsProbe::Unreachable(cause) if cli.prompt.is_some() => {
+                anyhow::bail!(
+                    "provider unreachable at {}: {cause}\n\
+                     Nothing is listening there, so the run would only hang and fail.\n\
+                     `abacus doctor` checks the endpoint; the profile lives in {}.",
+                    config.base_url,
+                    config.paths.config_file.display()
+                );
+            }
+            model_info::ModelsProbe::Unreachable(_) | model_info::ModelsProbe::Inconclusive => {}
+        }
     }
 
     let store = SessionStore::new(&paths, config.workspace.clone());
@@ -640,10 +656,16 @@ async fn doctor(config: &Config, settings: &Settings) -> Result<()> {
     let mut limits = config.model_limits;
     if limits.source != model_info::LimitSource::Override
         && let Some(models_url) = config.models_endpoint()
-        && let Some((context, output)) =
-            model_info::detect_limits(&models_url, config.api_key.as_deref(), &config.model).await
     {
-        limits.apply_detected(context, output);
+        match model_info::detect_limits(&models_url, config.api_key.as_deref(), &config.model).await
+        {
+            model_info::ModelsProbe::Limits(context, output) => {
+                limits.apply_detected(context, output);
+            }
+            // Reachability has its own line just above; the limits line keeps
+            // reporting the estimate a real run would fall back to.
+            model_info::ModelsProbe::Unreachable(_) | model_info::ModelsProbe::Inconclusive => {}
+        }
     }
     let output_cap = limits
         .configured_output_tokens
