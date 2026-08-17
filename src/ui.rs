@@ -1215,7 +1215,7 @@ mod tests {
             true,
         );
         let row = plain(&done.lines[0]);
-        assert!(row.contains('✓'), "{row}");
+        assert!(row.contains(glyphs().ok), "{row}");
         assert!(row.trim_end().ends_with("1.5s"), "{row}");
     }
 
