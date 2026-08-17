@@ -64,11 +64,11 @@ case "$mode" in
         ;;
     smoke)
         step 'cargo check --all-targets --locked'
-        step 'cargo test --test cli_headless'
+        step 'cargo test --locked --test cli_headless'
         ;;
     full)
-        step 'cargo clippy --all-targets -- -D warnings'
-        step 'cargo test --all-targets'
+        step 'cargo clippy --all-targets --locked -- -D warnings'
+        step 'cargo test --all-targets --locked'
         ;;
 esac
 

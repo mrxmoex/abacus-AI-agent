@@ -3,6 +3,10 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly, so a quiet repository still notices new stable-Rust breakage.
+    - cron: "0 6 * * 1"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -31,6 +35,8 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test --all-targets
+      # The same command contributors and agents run locally, so the gate
+      # cannot drift from the documented workflow. Bash exists on all three
+      # runners; on Windows it is Git Bash.
+      - run: ./scripts/validate.sh full
+        shell: bash
