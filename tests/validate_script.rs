@@ -37,7 +37,7 @@ fn smoke_runs_the_headless_cli_test_that_needs_no_api_key() {
     let (ok, stdout, stderr) = dry_run(&["smoke"]);
     assert!(ok, "{stderr}");
     assert!(
-        stdout.contains("cargo test --test cli_headless"),
+        stdout.contains("cargo test --locked --test cli_headless"),
         "{stdout}"
     );
 }
@@ -48,10 +48,30 @@ fn full_covers_every_ci_gate() {
     assert!(ok, "{stderr}");
     assert!(stdout.contains("cargo fmt --all -- --check"), "{stdout}");
     assert!(
-        stdout.contains("cargo clippy --all-targets -- -D warnings"),
+        stdout.contains("cargo clippy --all-targets --locked -- -D warnings"),
         "{stdout}"
     );
-    assert!(stdout.contains("cargo test --all-targets"), "{stdout}");
+    assert!(
+        stdout.contains("cargo test --all-targets --locked"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn every_cargo_step_that_resolves_dependencies_is_locked() {
+    for mode in ["quick", "smoke", "full"] {
+        let (ok, stdout, stderr) = dry_run(&[mode]);
+        assert!(ok, "{stderr}");
+        for line in stdout.lines() {
+            if line.starts_with("cargo fmt") {
+                continue;
+            }
+            assert!(
+                line.contains("--locked"),
+                "{mode} step resolves dependencies unlocked: {line}"
+            );
+        }
+    }
 }
 
 #[test]
