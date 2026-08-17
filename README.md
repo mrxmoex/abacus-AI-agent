@@ -217,12 +217,19 @@ directory is the whole cleanup, and you can turn the feature off under `/config`
 
 ## Install and start
 
+Requires Rust 1.88 or newer, since the crate uses edition 2024.
+
 ```sh
 cargo install --path .
 abacus setup
 cd your-project
 abacus
 ```
+
+`abacus setup` needs an interactive terminal. In CI, containers, and other
+non-interactive environments, pass `--base-url`, `--model`, and `--protocol` on
+the command line or write `~/.abacus/config.toml` directly, then confirm the
+result with `abacus doctor`. [AGENTS.md](AGENTS.md) has both recipes.
 
 A first launch without configuration runs a three-step onboarding: provider
 credentials, live model discovery, permissions, Vim bindings, welcome guidance,
@@ -892,7 +899,10 @@ abacus -p "Implement the importer and output DONE when green" \
   --loop --max-iterations 20 --completion-promise "DONE"
 ```
 
-Headless writes are rejected unless `--always-approve` is present. `--loop`
+A headless run against an address where nothing listens fails immediately with
+`provider unreachable` instead of hanging, so a misconfigured CI job dies with
+an actionable error. Headless writes are rejected unless `--always-approve` is
+present. `--loop`
 replays the prompt each iteration until the completion promise appears (default
 `COMPLETE`) or `--max-iterations` is reached; loop state persists to the session
 and a failure pauses the loop, matching `/loop`. Output formats are `plain`,
@@ -944,6 +954,17 @@ a container or VM for untrusted repositories or unattended work. See
 [SECURITY.md](SECURITY.md).
 
 ## Development and release gates
+
+```sh
+./scripts/validate.sh          # quick: fmt check and cargo check
+./scripts/validate.sh smoke    # quick, plus the CLI test that needs no API key
+./scripts/validate.sh full     # fmt, clippy, and the whole suite, matching CI
+```
+
+`validate.sh` stops at the first failure and exits with that command's status,
+and `git config core.hooksPath .githooks` opts a clone into a pre-push hook
+that runs the quick checks automatically. The gates it wraps also run directly,
+and a release additionally builds with `--locked`:
 
 ```sh
 cargo fmt --all -- --check

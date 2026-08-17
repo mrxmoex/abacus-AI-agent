@@ -497,7 +497,11 @@ mod tests {
     #[test]
     fn depth_detection_reads_the_environment() {
         let _guard = ENV.lock().unwrap_or_else(|error| error.into_inner());
+        // `NO_COLOR` outranks every other signal, and CI images and containers
+        // often export it, so this test has to own it rather than inherit it.
+        let inherited = std::env::var_os("NO_COLOR");
         unsafe {
+            std::env::remove_var("NO_COLOR");
             std::env::set_var("ABACUS_COLOR", "256");
         }
         assert_eq!(ColorDepth::detect(), ColorDepth::Ansi256);
@@ -507,6 +511,9 @@ mod tests {
         assert_eq!(ColorDepth::detect(), ColorDepth::Ansi16);
         unsafe {
             std::env::remove_var("ABACUS_COLOR");
+            if let Some(value) = inherited {
+                std::env::set_var("NO_COLOR", value);
+            }
         }
     }
 

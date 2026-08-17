@@ -291,36 +291,74 @@ fn known_limits(model: &str) -> Option<(usize, usize)> {
     None
 }
 
+/// Outcome of the `/models` preflight. Beyond limit detection, the probe is
+/// the earliest point at which a dead endpoint can be told apart from a live
+/// one, so transport-level failures are reported rather than swallowed —
+/// headless runs use that to fail fast instead of grinding through the chat
+/// client's connect retries.
+pub enum ModelsProbe {
+    /// The endpoint answered with usable limits.
+    Limits(usize, Option<usize>),
+    /// The endpoint could not help (missing `/models`, auth wall, odd shape),
+    /// but something is listening — callers fall back to heuristics/defaults.
+    Inconclusive,
+    /// Nothing answered at the address at all: refused, timed out at connect,
+    /// or unresolvable. Chat requests to the same address cannot work either.
+    Unreachable(String),
+}
+
 /// Best-effort detection of a model's context window and output cap from the
-/// provider's `/models` endpoint. Returns `None` on any failure — callers fall
-/// back to the heuristic/default. Supports common response shapes: OpenAI /
+/// provider's `/models` endpoint. Supports common response shapes: OpenAI /
 /// OpenRouter (`data`), servers that key the list under `models`, a bare root
 /// array, and per-model `context_length` as either a number or a `k`/`m`-
 /// suffixed string.
-pub async fn detect_limits(
-    models_url: &str,
-    api_key: Option<&str>,
-    model: &str,
-) -> Option<(usize, Option<usize>)> {
+pub async fn detect_limits(models_url: &str, api_key: Option<&str>, model: &str) -> ModelsProbe {
     // Short timeout: this is a non-blocking best-effort pre-flight, and a server
     // that doesn't implement /models would otherwise stall every launch.
-    let client = Client::builder()
+    let Ok(client) = Client::builder()
+        .connect_timeout(Duration::from_secs(2))
         .timeout(Duration::from_secs(2))
         .user_agent(concat!("abacus-agent/", env!("CARGO_PKG_VERSION")))
         .build()
-        .ok()?;
+    else {
+        return ModelsProbe::Inconclusive;
+    };
     let mut request = client
         .get(models_url)
         .header(header::ACCEPT, "application/json");
     if let Some(key) = api_key {
         request = request.bearer_auth(key);
     }
-    let response = request.send().await.ok()?;
+    let response = match request.send().await {
+        Ok(response) => response,
+        // Only connect-class failures are conclusive. A response timeout means
+        // a server accepted the connection and is merely slow, and that must
+        // not kill a working setup.
+        Err(error) if error.is_connect() => {
+            return ModelsProbe::Unreachable(innermost_cause(&error));
+        }
+        Err(_) => return ModelsProbe::Inconclusive,
+    };
     if !response.status().is_success() {
-        return None;
+        return ModelsProbe::Inconclusive;
     }
-    let value: Value = response.json().await.ok()?;
-    extract_limits_from_models(&value, model)
+    let Ok(value) = response.json::<Value>().await else {
+        return ModelsProbe::Inconclusive;
+    };
+    match extract_limits_from_models(&value, model) {
+        Some((context, output)) => ModelsProbe::Limits(context, output),
+        None => ModelsProbe::Inconclusive,
+    }
+}
+
+/// The deepest source in the chain — "Connection refused (os error 111)"
+/// rather than reqwest's URL-wrapping envelope, which the caller already has.
+fn innermost_cause(error: &dyn std::error::Error) -> String {
+    let mut current = error;
+    while let Some(source) = current.source() {
+        current = source;
+    }
+    current.to_string()
 }
 
 /// Pure, network-free extraction of a model's limits from a parsed `/models`

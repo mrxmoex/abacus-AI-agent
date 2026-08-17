@@ -9842,7 +9842,10 @@ mod tests {
             "hunk headers must not render: {plain:?}"
         );
         assert_eq!(
-            plain.iter().filter(|line| line.trim() == "⋮").count(),
+            plain
+                .iter()
+                .filter(|line| line.trim() == ui::glyphs().gap)
+                .count(),
             1,
             "one gap between two hunks: {plain:?}"
         );
