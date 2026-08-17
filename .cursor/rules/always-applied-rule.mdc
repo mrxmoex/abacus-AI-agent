@@ -1,0 +1,7 @@
+---
+description: Should NOT be migrated (alwaysApply)
+alwaysApply: true
+---
+# Always Applied
+
+This rule should be skipped.
