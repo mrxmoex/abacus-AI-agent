@@ -1405,15 +1405,22 @@ async fn an_outside_read_is_cleared_but_a_credential_is_not() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
+        // Serialized, not formatted: a Windows path's backslashes would be
+        // invalid JSON escapes in a hand-built stream chunk.
+        let read_call = |id: &str, path: &std::path::Path| {
+            let chunk = json!({"choices":[{"delta":{"tool_calls":[{
+                "index": 0,
+                "id": id,
+                "function": {
+                    "name": "read_file",
+                    "arguments": json!({"path": path}).to_string(),
+                },
+            }]}}]});
+            format!("data: {chunk}\n\ndata: [DONE]\n\n")
+        };
         let calls = [
-            format!(
-                "data: {{\"choices\":[{{\"delta\":{{\"tool_calls\":[{{\"index\":0,\"id\":\"c1\",\"function\":{{\"name\":\"read_file\",\"arguments\":\"{{\\\"path\\\":\\\"{}\\\"}}\"}}}}]}}}}]}}\n\ndata: [DONE]\n\n",
-                sibling_file.display()
-            ),
-            format!(
-                "data: {{\"choices\":[{{\"delta\":{{\"tool_calls\":[{{\"index\":0,\"id\":\"c2\",\"function\":{{\"name\":\"read_file\",\"arguments\":\"{{\\\"path\\\":\\\"{}\\\"}}\"}}}}]}}}}]}}\n\ndata: [DONE]\n\n",
-                key_file.display()
-            ),
+            read_call("c1", &sibling_file),
+            read_call("c2", &key_file),
             "data: {\"choices\":[{\"delta\":{\"content\":\"done\"}}]}\n\ndata: [DONE]\n\n"
                 .to_owned(),
         ];
