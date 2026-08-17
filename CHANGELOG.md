@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Two workspace-boundary tests built tool-call JSON with `format!`, so a
+  Windows temp path's backslashes became invalid JSON escapes — one test failed
+  on the first-ever Windows CI run, and the other passed for the wrong reason
+  (the parse error's "invalid escape" matched the "escape" word its assertion
+  accepts). Both now serialize their arguments.
 - **Headless runs fail fast when the provider is unreachable.** The `/models`
   preflight already ran on every start; it now reports connect-level failures
   instead of swallowing them, and a `-p` run dies immediately with `provider

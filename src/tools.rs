@@ -2189,7 +2189,9 @@ mod tests {
         let call = ToolCall {
             id: "1".into(),
             name: "read_file".into(),
-            arguments: format!(r#"{{"path":"{}"}}"#, secret.display()),
+            // Serialized, not formatted: a Windows path's backslashes would be
+            // invalid JSON escapes in a hand-built string.
+            arguments: serde_json::json!({"path": secret}).to_string(),
         };
 
         // Nothing approved yet: the read is refused, and says why.
@@ -2229,10 +2231,11 @@ mod tests {
         let call = ToolCall {
             id: "1".into(),
             name: "write_file".into(),
-            arguments: format!(
-                r#"{{"path":"{}","content":"overwritten"}}"#,
-                target.display()
-            ),
+            // Serialized for the same reason — and on Windows the hand-built
+            // string used to pass this test for the wrong reason, because the
+            // JSON parse error ("invalid escape") matched the "escape" word
+            // the assertion accepts.
+            arguments: serde_json::json!({"path": target, "content": "overwritten"}).to_string(),
         };
         let result = tools.execute(&call).await;
         assert!(
