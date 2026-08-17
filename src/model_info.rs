@@ -313,11 +313,16 @@ pub enum ModelsProbe {
 /// array, and per-model `context_length` as either a number or a `k`/`m`-
 /// suffixed string.
 pub async fn detect_limits(models_url: &str, api_key: Option<&str>, model: &str) -> ModelsProbe {
-    // Short timeout: this is a non-blocking best-effort pre-flight, and a server
-    // that doesn't implement /models would otherwise stall every launch.
+    // Short timeouts: this is a non-blocking best-effort pre-flight, and a
+    // server that doesn't implement /models would otherwise stall every
+    // launch. Connect gets a strictly shorter budget than the request so a
+    // dead address always classifies as a connect failure instead of losing
+    // the race to the overall timer and reading as an inconclusive slow
+    // response — Windows in particular retries refused loopback connects for
+    // about a second before reporting them.
     let Ok(client) = Client::builder()
         .connect_timeout(Duration::from_secs(2))
-        .timeout(Duration::from_secs(2))
+        .timeout(Duration::from_secs(4))
         .user_agent(concat!("abacus-agent/", env!("CARGO_PKG_VERSION")))
         .build()
     else {
