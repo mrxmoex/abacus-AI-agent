@@ -217,12 +217,19 @@ directory is the whole cleanup, and you can turn the feature off under `/config`
 
 ## Install and start
 
+Requires Rust 1.88 or newer, since the crate uses edition 2024.
+
 ```sh
 cargo install --path .
 abacus setup
 cd your-project
 abacus
 ```
+
+`abacus setup` needs an interactive terminal. In CI, containers, and other
+non-interactive environments, pass `--base-url`, `--model`, and `--protocol` on
+the command line or write `~/.abacus/config.toml` directly, then confirm the
+result with `abacus doctor`. [AGENTS.md](AGENTS.md) has both recipes.
 
 A first launch without configuration runs a three-step onboarding: provider
 credentials, live model discovery, permissions, Vim bindings, welcome guidance,
@@ -944,6 +951,16 @@ a container or VM for untrusted repositories or unattended work. See
 [SECURITY.md](SECURITY.md).
 
 ## Development and release gates
+
+```sh
+./scripts/validate.sh          # quick: fmt check and cargo check
+./scripts/validate.sh smoke    # quick, plus the CLI test that needs no API key
+./scripts/validate.sh full     # fmt, clippy, and the whole suite, matching CI
+```
+
+`validate.sh` stops at the first failure and exits with that command's status.
+The gates it wraps also run directly, and a release additionally builds with
+`--locked`:
 
 ```sh
 cargo fmt --all -- --check

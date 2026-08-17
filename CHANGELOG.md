@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- `scripts/validate.sh` is a single entry point for the checks a contributor or
+  an agent needs: `quick` for formatting and compilation, `smoke` to add the
+  headless CLI test that needs no API key, and `full` for the gates CI enforces.
+  It stops at the first failure and exits with that command's status.
+- `AGENTS.md` documents the toolchain floor, the validation commands, and how to
+  configure and run Abacus where `abacus setup` cannot open a terminal.
+- Three unit tests no longer depend on the terminal they run under. They
+  hardcoded `✓` and `⋮` and ignored an inherited `NO_COLOR`, so the suite failed
+  under `TERM=dumb` or `NO_COLOR=1` — the defaults in many containers — for
+  reasons unrelated to the code under test. They now assert against the active
+  glyph set and own the variable they depend on.
 - **Turns no longer loop the opening prompt.** A `max_output_tokens` at or
   above the context window (a leftover `[agent]` 128k on a 128k local model,
   or a server echoing its window as the completion cap) reserved the entire
