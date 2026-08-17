@@ -11,6 +11,10 @@
   server is untouched, and the TUI still opens for an interactive fix.
 - An opt-in pre-push hook (`git config core.hooksPath .githooks`) runs the
   quick validation before every push.
+- CI now runs `./scripts/validate.sh full` instead of duplicating its commands,
+  so the local gate and the merge gate cannot drift apart, and a weekly
+  scheduled run catches new stable-Rust breakage while the repository is quiet.
+  Every dependency-resolving step in the script carries `--locked`.
 - `rust-toolchain.toml` pins rustup users to current stable, matching the CI
   check matrix; the 1.88 MSRV floor stays declared in `Cargo.toml`.
 - `scripts/validate.sh` is a single entry point for the checks a contributor or

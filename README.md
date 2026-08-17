@@ -961,10 +961,12 @@ a container or VM for untrusted repositories or unattended work. See
 ./scripts/validate.sh full     # fmt, clippy, and the whole suite, matching CI
 ```
 
-`validate.sh` stops at the first failure and exits with that command's status,
-and `git config core.hooksPath .githooks` opts a clone into a pre-push hook
-that runs the quick checks automatically. The gates it wraps also run directly,
-and a release additionally builds with `--locked`:
+`validate.sh` stops at the first failure and exits with that command's status.
+CI runs `./scripts/validate.sh full` on Linux, macOS, and Windows, so the local
+command and the merge gate cannot drift apart, and
+`git config core.hooksPath .githooks` opts a clone into a pre-push hook that
+runs the quick checks automatically. The gates it wraps also run directly, and
+a release additionally builds with `--locked`:
 
 ```sh
 cargo fmt --all -- --check
