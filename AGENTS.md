@@ -23,6 +23,9 @@ command's status.
 `quick` is the fast edit loop. Run `full` before pushing; it is what CI runs.
 Add `--dry-run` to print the commands without running them.
 
+`git config core.hooksPath .githooks` opts a clone into the pre-push hook,
+which runs `quick` before every push. Bypass once with `git push --no-verify`.
+
 For a single area, the underlying commands still work directly, for example
 `cargo test --lib config::` or `cargo test --test e2e_agent`.
 
@@ -56,9 +59,9 @@ model = "your-tool-capable-model"
 protocol = "chat-completions"
 ```
 
-Then `abacus doctor` reports whether the endpoint answers. A configured endpoint
-that is not listening makes a headless run wait on the connection, so check
-`doctor` first when a run seems to hang.
+Then `abacus doctor` reports whether the endpoint answers. When nothing listens
+at the configured address, a headless run fails immediately with `provider
+unreachable` and the path of the config file to fix, rather than hanging.
 
 `tests/cli_headless.rs` shows the same path end to end against a local stub
 server, which is why `smoke` needs no credentials.

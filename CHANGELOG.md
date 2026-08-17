@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **Headless runs fail fast when the provider is unreachable.** The `/models`
+  preflight already ran on every start; it now reports connect-level failures
+  instead of swallowing them, and a `-p` run dies immediately with `provider
+  unreachable`, the underlying cause, and the config file to fix — measured at
+  6ms where the old path spent seconds in silent connect retries before a raw
+  transport error. Response timeouts stay non-fatal, so a slow-but-listening
+  server is untouched, and the TUI still opens for an interactive fix.
+- An opt-in pre-push hook (`git config core.hooksPath .githooks`) runs the
+  quick validation before every push.
+- `rust-toolchain.toml` pins rustup users to current stable, matching the CI
+  check matrix; the 1.88 MSRV floor stays declared in `Cargo.toml`.
 - `scripts/validate.sh` is a single entry point for the checks a contributor or
   an agent needs: `quick` for formatting and compilation, `smoke` to add the
   headless CLI test that needs no API key, and `full` for the gates CI enforces.

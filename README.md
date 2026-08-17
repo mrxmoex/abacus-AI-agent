@@ -899,7 +899,10 @@ abacus -p "Implement the importer and output DONE when green" \
   --loop --max-iterations 20 --completion-promise "DONE"
 ```
 
-Headless writes are rejected unless `--always-approve` is present. `--loop`
+A headless run against an address where nothing listens fails immediately with
+`provider unreachable` instead of hanging, so a misconfigured CI job dies with
+an actionable error. Headless writes are rejected unless `--always-approve` is
+present. `--loop`
 replays the prompt each iteration until the completion promise appears (default
 `COMPLETE`) or `--max-iterations` is reached; loop state persists to the session
 and a failure pauses the loop, matching `/loop`. Output formats are `plain`,
@@ -958,9 +961,10 @@ a container or VM for untrusted repositories or unattended work. See
 ./scripts/validate.sh full     # fmt, clippy, and the whole suite, matching CI
 ```
 
-`validate.sh` stops at the first failure and exits with that command's status.
-The gates it wraps also run directly, and a release additionally builds with
-`--locked`:
+`validate.sh` stops at the first failure and exits with that command's status,
+and `git config core.hooksPath .githooks` opts a clone into a pre-push hook
+that runs the quick checks automatically. The gates it wraps also run directly,
+and a release additionally builds with `--locked`:
 
 ```sh
 cargo fmt --all -- --check
